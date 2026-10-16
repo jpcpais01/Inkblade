@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Ink Blade · 墨刃</title>
+    <meta name="description" content="A one-on-one samurai duel painted in living sumi-e ink." />
+    <meta name="theme-color" content="#ece3cc" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ink Blade" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="preload" href="/fonts/yuji.woff2" as="font" type="font/woff2" crossorigin />
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="4" result="n" />
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </svg>
+    <div id="app"></div>
+    <div id="ui">
+      <section id="title" class="screen">
+        <div class="brand">
+          <div class="kanji">墨刃</div>
+          <div class="latin">Ink Blade</div>
+          <div class="tag">a duel in sumi-e</div>
+        </div>
+        <nav class="menu">
+          <button data-mode="duel"><b>決闘</b><span>Duel</span></button>
+          <button data-mode="watch"><b>観戦</b><span>Watch</span></button>
+        </nav>
+      </section>
+      <section id="result" class="screen hidden">
+        <div id="verdict"></div>
+        <nav class="menu">
+          <button data-mode="duel"><b>再</b><span>Duel again</span></button>
+          <button data-mode="watch"><b>観戦</b><span>Watch</span></button>
+          <button id="menu-btn" class="ghost"><span>Title</span></button>
+        </nav>
+      </section>
+      <div id="touch" class="hidden">
+        <div class="pad">
+          <button data-cmd="up" class="b-up" aria-label="Raise stance">▲</button>
+          <button data-cmd="left" class="b-left" aria-label="Step back (double tap: dodge)">◀</button>
+          <button data-cmd="right" class="b-right" aria-label="Step in (double tap: dash)">▶</button>
+          <button data-cmd="down" class="b-down" aria-label="Lower stance">▼</button>
+        </div>
+        <div class="acts">
+          <button data-cmd="sheathe" class="b-noto" aria-label="Sheathe"><b>納</b></button>
+          <button data-cmd="feint" class="b-feint" aria-label="Feint"><b>虚</b><span>feint</span></button>
+          <button data-cmd="parry" class="b-parry" aria-label="Parry"><b>受</b><span>parry</span></button>
+          <button data-cmd="strike" class="b-strike" aria-label="Strike"><b>斬</b><span>strike</span></button>
+        </div>
+      </div>
+      <div id="keys" class="hidden">
+        <span><kbd>←</kbd><kbd>→</kbd> step · tap twice to dash / dodge</span>
+        <span><kbd>↑</kbd><kbd>↓</kbd> stance</span>
+        <span><kbd>J</kbd> strike</span>
+        <span><kbd>K</kbd> parry</span>
+        <span><kbd>L</kbd> feint</span>
+        <span><kbd>I</kbd> sheathe</span>
+      </div>
+      <div id="rotate">Turn your phone sideways</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

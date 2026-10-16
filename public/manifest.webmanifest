@@ -1,0 +1,15 @@
+{
+  "name": "Ink Blade · 墨刃",
+  "short_name": "Ink Blade",
+  "description": "A one-on-one samurai duel painted in living sumi-e ink.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ece3cc",
+  "theme_color": "#ece3cc",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

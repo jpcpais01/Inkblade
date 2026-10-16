@@ -1,0 +1,349 @@
+@font-face {
+  font-family: 'Yuji Syuku';
+  src: url('/fonts/yuji.woff2') format('woff2');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/fonts/cormorant.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: italic;
+  font-weight: 500;
+  src: url('/fonts/cormorant-italic.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --paper: #ece3cc;
+  --ink: #151212;
+  --red: #a5121b;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#app,
+#app canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 5vh, 44px);
+  pointer-events: auto;
+  animation: bleed-in 1.4s ease both;
+}
+
+@keyframes bleed-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+#title {
+  justify-content: flex-start;
+  padding-top: clamp(16px, 9vh, 90px);
+}
+
+.brand {
+  text-align: center;
+  filter: url(#rough);
+}
+.brand .kanji {
+  font-family: 'Yuji Syuku', serif;
+  font-size: clamp(64px, 17vh, 150px);
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  text-shadow: 0 0 6px rgba(20, 18, 18, 0.25);
+}
+.brand .latin {
+  font-style: italic;
+  font-size: clamp(20px, 4.6vh, 38px);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  margin-top: 0.3em;
+}
+.brand .tag {
+  font-size: clamp(13px, 2.4vh, 18px);
+  letter-spacing: 0.2em;
+  opacity: 0.6;
+  margin-top: 0.5em;
+}
+
+.menu {
+  display: flex;
+  gap: clamp(12px, 3vw, 28px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.menu button {
+  font: inherit;
+  color: var(--paper);
+  background: rgba(21, 18, 18, 0.9);
+  border: none;
+  border-radius: 46% 54% 50% 50% / 60% 45% 55% 40%;
+  padding: 0.55em 1.6em 0.6em;
+  min-width: 8.5em;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05em;
+  filter: url(#rough);
+  transition: transform 0.15s ease, background 0.2s ease;
+  box-shadow: 0 0 14px rgba(20, 18, 18, 0.25);
+}
+.menu button b {
+  font-family: 'Yuji Syuku', serif;
+  font-weight: 400;
+  font-size: 1.7em;
+  line-height: 1.1;
+}
+.menu button span {
+  font-style: italic;
+  letter-spacing: 0.18em;
+  font-size: 1.05em;
+}
+.menu button:hover,
+.menu button:focus-visible {
+  transform: scale(1.05) rotate(-1deg);
+  background: var(--red);
+  outline: none;
+}
+.menu button.ghost {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+  min-width: 0;
+  justify-content: center;
+}
+.menu button.ghost:hover {
+  background: rgba(21, 18, 18, 0.12);
+}
+
+#result {
+  justify-content: flex-end;
+  padding-bottom: clamp(16px, 8vh, 80px);
+  background: radial-gradient(ellipse at 50% 85%, rgba(236, 227, 204, 0.75), transparent 60%);
+}
+#verdict {
+  text-align: center;
+  filter: url(#rough);
+}
+.v-big {
+  display: block;
+  font-style: italic;
+  font-size: clamp(34px, 9vh, 76px);
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+.v-small {
+  display: block;
+  font-size: clamp(14px, 2.6vh, 20px);
+  letter-spacing: 0.2em;
+  opacity: 0.75;
+  margin-top: 0.4em;
+}
+
+/* ---- touch controls ---- */
+#touch {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  transition: opacity 0.8s ease;
+}
+#touch.awake {
+  opacity: 1;
+}
+#touch button {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  border: none;
+  color: var(--ink);
+  background: radial-gradient(circle at 45% 40%, rgba(21, 18, 18, 0.06), rgba(21, 18, 18, 0.16) 70%, rgba(21, 18, 18, 0.42) 74%, rgba(21, 18, 18, 0.0) 77%);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  filter: url(#rough);
+  transition: transform 0.08s ease, background 0.08s ease;
+}
+#touch button.down {
+  transform: scale(0.92);
+  background: radial-gradient(circle at 45% 40%, rgba(21, 18, 18, 0.5), rgba(21, 18, 18, 0.7) 70%, rgba(21, 18, 18, 0.0) 77%);
+  color: var(--paper);
+}
+#touch button b {
+  font-family: 'Yuji Syuku', serif;
+  font-weight: 400;
+  font-size: 1.9em;
+  line-height: 1;
+}
+#touch button span {
+  font-style: italic;
+  font-size: 0.8em;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+}
+.pad,
+.acts {
+  position: absolute;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  width: min(40vw, 260px);
+  height: min(40vw, 230px);
+}
+.pad {
+  left: max(14px, env(safe-area-inset-left));
+}
+.acts {
+  right: max(14px, env(safe-area-inset-right));
+}
+.pad button {
+  width: 34%;
+  aspect-ratio: 1;
+  font-size: clamp(18px, 3.4vw, 26px);
+}
+.b-left {
+  left: 0;
+  top: 33%;
+}
+.b-right {
+  right: 0;
+  top: 33%;
+}
+.b-up {
+  left: 33%;
+  top: 0;
+}
+.b-down {
+  left: 33%;
+  bottom: 0;
+}
+.acts button {
+  font-size: clamp(13px, 2.6vw, 18px);
+}
+.b-strike {
+  width: 46%;
+  aspect-ratio: 1;
+  right: 0;
+  bottom: 0;
+  font-size: clamp(16px, 3.2vw, 22px) !important;
+}
+.b-strike b {
+  color: var(--red);
+}
+.b-parry {
+  width: 34%;
+  aspect-ratio: 1;
+  right: 50%;
+  bottom: 2%;
+}
+.b-feint {
+  width: 32%;
+  aspect-ratio: 1;
+  right: 18%;
+  bottom: 50%;
+}
+.b-noto {
+  width: 24%;
+  aspect-ratio: 1;
+  right: 62%;
+  bottom: 52%;
+}
+
+#keys {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 22px;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  opacity: 0.45;
+  transition: opacity 0.8s ease;
+  padding: 0 16px;
+}
+#keys.awake {
+  opacity: 0.7;
+}
+kbd {
+  font-family: inherit;
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 0.35em;
+  margin: 0 0.1em;
+  border: 1.5px solid rgba(21, 18, 18, 0.55);
+  border-radius: 40% 50% 45% 55%;
+  text-align: center;
+  font-style: normal;
+}
+
+#rotate {
+  display: none;
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  font-style: italic;
+  letter-spacing: 0.15em;
+  font-size: 15px;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate {
+    display: block;
+  }
+}
