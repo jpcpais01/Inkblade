@@ -137,7 +137,7 @@ async function boot() {
       const p = toScreen(at.x, at.y);
       splash.trigger(p.x + dir * camScale * 0.25, p.y - camScale * 0.1, camScale * 0.42, dir);
       cut.trigger(p.x, p.y, W, H, dir, camScale * 0.12);
-      sealX = portraitNow() ? 0.5 : dir > 0 ? 0.15 : 0.85;
+      sealX = portraitNow() ? 0.5 : dir > 0 ? 0.12 : 0.9;
       grass.shove(1);
     },
     seal() {
