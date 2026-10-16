@@ -4,8 +4,9 @@ import { sound } from './audio/audio';
 import { Duel, type Mode } from './game/duel';
 import type { Cmd, Fighter } from './game/fighter';
 import { mountainFilter, paperFilter, sunFilter, LivingInkFilter, type MountainParams } from './render/filters';
-import { paintGround, paintLives, paintPine, ScreenSplash } from './render/fx';
-import { InkBatch } from './render/ink';
+import { Grass, paintForeground, paintGround, paintLives, paintPine, ScreenSlash, ScreenSplash } from './render/fx';
+import { Flock, mistBands, paintMist } from './render/sky';
+import { InkBatch, PAPER } from './render/ink';
 import { makeSeal } from './ui/seal';
 import { Controls } from './ui/controls';
 import { clamp, lerp, smooth, Spring } from './util';
@@ -38,7 +39,17 @@ async function boot() {
   const paper = new Sprite();
   const sun = new Sprite();
   const hills = MOUNTAINS.map(() => new Sprite());
-  bg.addChild(paper, sun, ...hills);
+  // mist drifts between the ranges; birds cross behind the nearer ones
+  const airs = MOUNTAINS.map(() => new InkBatch(4000, 0.004));
+  const bands = MOUNTAINS.map((_, i) => mistBands(i));
+  const flock = new Flock();
+  bg.addChild(paper, sun);
+  hills.forEach((h, i) => bg.addChild(h, airs[i].mesh));
+
+  // during the held breath after the kill the world behind recedes into paper
+  const veil = new Sprite(Texture.WHITE);
+  veil.tint = (Math.round(PAPER.r * 255) << 16) | (Math.round(PAPER.g * 255) << 8) | Math.round(PAPER.b * 255);
+  veil.alpha = 0;
 
   const ink = new Container();
   const living = new LivingInkFilter();
@@ -50,6 +61,7 @@ async function boot() {
   mid.addChild(pine.mesh);
 
   const world = new Container();
+  const grass = new Grass();
   const ground = new InkBatch(12000);
   paintGround(ground);
   const back = new InkBatch(12000);
@@ -57,10 +69,13 @@ async function boot() {
   const front = new InkBatch(40000);
   world.addChild(ground.mesh, back.mesh, bodies.mesh, front.mesh);
 
+  const fore = new InkBatch(8000);
+  paintForeground(fore);
+
   const screen = new Container();
   const screenInk = new InkBatch(12000, 0.08);
   screen.addChild(screenInk.mesh);
-  ink.addChild(mid, world, screen);
+  ink.addChild(mid, world, fore.mesh, screen);
 
   const ui = new Container();
   const seal = new Sprite(makeSeal('勝', 512));
@@ -68,7 +83,7 @@ async function boot() {
   seal.visible = false;
   ui.addChild(seal);
 
-  app.stage.addChild(bg, ink, ui);
+  app.stage.addChild(bg, veil, ink, ui);
 
   // ------------------------------------------------------------ baking
   let W = 0;
@@ -108,17 +123,22 @@ async function boot() {
 
   // ------------------------------------------------------------ game
   const splash = new ScreenSplash();
+  const cut = new ScreenSlash();
   const titleEl = document.getElementById('title')!;
   const resultEl = document.getElementById('result')!;
   const verdictEl = document.getElementById('verdict')!;
   const beginEl = document.getElementById('begin')!;
   let sealT = -1;
+  let sealX = 0.36;
   let autoTimer = 0;
 
   const duel = new Duel({
     killSplash(at, dir) {
       const p = toScreen(at.x, at.y);
       splash.trigger(p.x + dir * camScale * 0.25, p.y - camScale * 0.1, camScale * 0.42, dir);
+      cut.trigger(p.x, p.y, W, H, dir, camScale * 0.12);
+      sealX = portraitNow() ? 0.5 : dir > 0 ? 0.15 : 0.85;
+      grass.shove(1);
     },
     seal() {
       sealT = 0;
@@ -153,6 +173,7 @@ async function boot() {
     seal.visible = false;
     sealT = -1;
     splash.reset();
+    cut.reset();
     autoTimer = 0;
     duel.begin(mode);
     controls.show(mode === 'duel');
@@ -169,6 +190,7 @@ async function boot() {
     titleEl.classList.remove('hidden');
     seal.visible = false;
     splash.reset();
+    cut.reset();
     controls.show(false);
     duel.phase = 'title';
     autoTimer = 0;
@@ -188,6 +210,7 @@ async function boot() {
   }
 
   let real = 0;
+  let lastDt = 1 / 60;
   let cpuMs = 0;
   function update(dt: number) {
     real += dt;
@@ -211,18 +234,18 @@ async function boot() {
     const b = duel.b;
     const dist = Math.abs(b.x - a.x);
     const portrait = H > W;
-    let wantW = duel.phase === 'title' ? 8.6 : clamp(dist + 4.4, 6.6, 10.5);
-    if (duel.phase === 'standoff') wantW = lerp(9.4, 7.6, smooth(clamp(duel.phaseT / 4, 0, 1)));
+    let wantW = duel.phase === 'title' ? 8.6 : clamp(dist + 3.3, 5.8, 9.8);
+    if (duel.phase === 'standoff') wantW = lerp(9.6, 6.8, smooth(clamp(duel.phaseT / 4, 0, 1)));
     if (portrait) wantW = clamp(dist + 2.6, 4.6, 7);
     let cx = (a.x + b.x) / 2;
     if (duel.punch > 0) {
       const k = Math.sin(Math.min(1, duel.punch) * Math.PI * 0.5);
       cx = lerp(cx, duel.punchAt.x, 0.25 * k);
-      wantW *= 1 - 0.14 * k;
+      wantW *= 1 - 0.2 * k;
     }
     camX.step(cx, dt);
     camZ.step(wantW, dt);
-    camScale = Math.min(W / camZ.x, (H * (portrait ? 0.42 : 0.62)) / 2.1);
+    camScale = Math.min(W / camZ.x, (H * (portrait ? 0.42 : 0.68)) / 2.1);
     const groundY = H * (portrait ? 0.66 : controls.touchVisible ? 0.74 : 0.8);
     const sh = duel.shake * duel.shake * camScale * 0.04;
     const sx = (Math.random() - 0.5) * sh;
@@ -233,6 +256,11 @@ async function boot() {
     world.scale.set(camScale, -camScale);
     mid.position.set(W / 2 - camX.x * 0.7 * camScale - 5.1 * camScale * 0.92 + sx, groundY + sy);
     mid.scale.set(camScale * 0.92, -camScale * 0.92);
+    const fs = camScale * 1.7;
+    fore.mesh.position.set(W / 2 - camX.x * fs + sx * 1.5, H + (portrait ? -H * 0.12 : 0) + sy * 1.5);
+    fore.mesh.scale.set(fs, -fs);
+    // the pine leans with the gusts, rooted at its foot
+    mid.rotation = -0.012 * duel.wind - 0.006 * Math.sin(real * 0.9) - 0.03 * duel.shake * Math.sin(real * 30);
 
     paper.position.set(0, 0);
     sun.position.set(W * 0.7 - sun.width / 2 - camX.x * camScale * 0.02, H * (portrait ? 0.14 : 0.1));
@@ -242,7 +270,18 @@ async function boot() {
     });
 
     living.u.uTime = real;
+    // the veil: background fades toward bare paper while the killer holds still
+    let veilA = 0;
+    if (duel.phase === 'kill') {
+      const t = duel.phaseT;
+      veilA = 0.62 * smooth(clamp(t / 0.35, 0, 1)) * (1 - smooth(clamp((t - 3.2) / 2.6, 0, 1)));
+    }
+    veil.alpha += (veilA - veil.alpha) * Math.min(1, dt * 12);
+    veil.width = W;
+    veil.height = H;
+    lastDt = dt;
     splash.update(dt);
+    cut.update(dt);
     if (sealT >= 0) sealT += dt;
   }
 
@@ -251,7 +290,15 @@ async function boot() {
     const b = duel.b;
     const t0 = performance.now();
     const time = duel.simTime;
+    airs.forEach((b, i) => {
+      b.begin();
+      paintMist(b, bands[i], W, H, real, duel.wind, camX.x * MOUNTAINS[i].parallax * 0.05);
+      if (i === 0) flock.draw(b, W, H, real);
+      b.end();
+    });
+
     back.begin();
+    grass.draw(back, time, duel.wind, lastDt);
     duel.fx.drawBack(back, time);
     duel.fx.drawPetals(back, false);
     back.end();
@@ -267,6 +314,7 @@ async function boot() {
     front.end();
 
     screenInk.begin();
+    cut.draw(screenInk);
     splash.draw(screenInk);
     if (duel.phase === 'fight' || duel.phase === 'standoff') {
       const s = Math.max(12, Math.min(W, H) * 0.03);
@@ -279,14 +327,14 @@ async function boot() {
     // ---- the seal
     if (sealT >= 0) {
       const k = clamp(sealT / 0.16, 0, 1);
-      const size = Math.min(W, H) * 0.3;
+      const size = Math.min(W, H) * 0.26;
       const sc = (size / 512) * lerp(2.1, 1, k * k);
       seal.scale.set(sc);
       seal.alpha = Math.min(1, k * 1.6);
       seal.rotation = lerp(-0.25, -0.06, k);
-      const wx = W * (portraitNow() ? 0.5 : 0.36);
+      const wx = W * sealX;
       const jolt = sealT > 0.16 && sealT < 0.3 ? (Math.random() - 0.5) * 6 : 0;
-      seal.position.set(wx + jolt, H * (portraitNow() ? 0.2 : 0.3) + jolt);
+      seal.position.set(wx + jolt, H * (portraitNow() ? 0.2 : 0.26) + jolt);
     }
     cpuMs = cpuMs * 0.9 + (performance.now() - t0) * 0.1;
   }

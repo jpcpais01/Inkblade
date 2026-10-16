@@ -59,7 +59,8 @@ void main() {
   } else {
     // Wash / blob: vUV.y is radial (1 at the rim).
     float r = vUV.y;
-    float edge = 1.0 - smoothstep(0.8, 1.0, r);
+    // vUV.x = softness: 0 is a crisp wash, 1 an out-of-focus bloom
+    float edge = 1.0 - smoothstep(0.8 - 0.75 * vUV.x, 1.0, r);
     vec2 g = vPos * uGrainScale;
     float gran = fbm3(g * 1.0 + seed);
     float pool = vP.w; // how much pigment collects at the rim
@@ -124,6 +125,8 @@ export interface BlobOpts {
   sx?: number;
   angle?: number;
   segs?: number;
+  /** Blob only: 0 crisp rim .. 1 soft, out-of-focus falloff. */
+  soft?: number;
   /** Ribbon only: per-row alpha multipliers. */
   alphas?: number[];
 }
@@ -310,7 +313,8 @@ export class InkBatch {
     const ang = o.angle ?? 0;
     const ca = Math.cos(ang);
     const sa = Math.sin(ang);
-    const center = this.vert(c.x, c.y, 0, 0, color, alpha, o.dry ?? 0, 1, seed, o.pool ?? 0.4);
+    const soft = o.soft ?? 0;
+    const center = this.vert(c.x, c.y, soft, 0, color, alpha, o.dry ?? 0, 1, seed, o.pool ?? 0.4);
     let first = -1;
     let prev = -1;
     for (let i = 0; i < segs; i++) {
@@ -318,7 +322,7 @@ export class InkBatch {
       const r = radius * (1 + rough * fbm1(seed * 13.1 + Math.cos(th) * 1.7 + Math.sin(th) * 1.3 + 4));
       const lx = Math.cos(th) * r * sx;
       const ly = Math.sin(th) * r;
-      const v = this.vert(c.x + lx * ca - ly * sa, c.y + lx * sa + ly * ca, 0, 1, color, alpha, o.dry ?? 0, 1, seed, o.pool ?? 0.4);
+      const v = this.vert(c.x + lx * ca - ly * sa, c.y + lx * sa + ly * ca, soft, 1, color, alpha, o.dry ?? 0, 1, seed, o.pool ?? 0.4);
       if (prev >= 0) this.tri(center, prev, v);
       else first = v;
       prev = v;

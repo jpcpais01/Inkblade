@@ -13,6 +13,8 @@ interface Slash {
   seed: number;
   width: number;
   owner: object;
+  /** Index from which the cut drew blood (-1: clean). */
+  red: number;
 }
 
 interface Drop {
@@ -93,14 +95,15 @@ export class Effects {
   }
 
   private newPetal(x: number, y: number): Petal {
-    const z = rand(0.55, 1.5);
+    // a few drift right past the lens, huge and out of focus
+    const z = Math.random() < 0.1 ? rand(2.0, 2.9) : rand(0.55, 1.5);
     return { x, y, z, vx: 0, vy: 0, spin: rand(0, 6), w: rand(2, 5), red: Math.random() < 0.14, rest: 0, seed: rand(0, 100) };
   }
 
   // ---- slash strokes
   beginSlash(owner: object, heavy: boolean) {
     this.endSlash(owner);
-    this.slashes.push({ pts: [], w: [], age: 0, life: heavy ? 2.4 : 1.7, live: true, seed: this.seedN++, width: heavy ? 0.12 : 0.085, owner });
+    this.slashes.push({ pts: [], w: [], age: 0, life: heavy ? 2.4 : 1.7, live: true, seed: this.seedN++, width: heavy ? 0.12 : 0.085, owner, red: -1 });
   }
 
   addSlashPoint(owner: object, p: V2, speed: number) {
@@ -110,6 +113,12 @@ export class Effects {
     if (last && Math.hypot(last.x - p.x, last.y - p.y) < 0.025) return;
     s.pts.push({ x: p.x, y: p.y });
     s.w.push(clamp(speed / 14, 0.3, 1.0));
+  }
+
+  /** The live cut on `owner` just went through flesh: paint it red from here on. */
+  bloodSlash(owner: object) {
+    const s = this.slashes.find((q) => q.owner === owner && q.live);
+    if (s && s.red < 0) s.red = Math.max(0, s.pts.length - 2);
   }
 
   endSlash(owner: object) {
@@ -209,6 +218,20 @@ export class Effects {
     for (const p of this.petals) {
       if (near !== p.z > 1.15) continue;
       const flip = Math.abs(Math.cos(p.spin));
+      if (p.z > 1.8) {
+        b.blob({ x: p.x, y: p.y }, 0.075 * p.z, {
+          color: p.red ? RED : INK,
+          alpha: p.red ? 0.2 : 0.09,
+          seed: p.seed,
+          rough: 0.2,
+          sx: 0.5 + flip * 1.1,
+          angle: p.spin * 0.7,
+          pool: 0.1,
+          soft: 0.9,
+          segs: 14,
+        });
+        continue;
+      }
       b.blob({ x: p.x, y: p.y }, 0.026 * p.z, {
         color: p.red ? RED : INK,
         alpha: (p.red ? 0.85 : 0.55) * (0.6 + 0.4 * Math.min(1, p.z)),
@@ -243,6 +266,26 @@ export class Effects {
         smoothing: 2,
         cap: false,
       });
+      if (s.red >= 0 && s.pts.length - s.red >= 2) {
+        // blood rides the cut: a narrower wet red line inside the black
+        b.stroke(s.pts.slice(s.red), {
+          width: s.width * 0.5 * (1 - k * 0.3),
+          widths: s.w.slice(s.red),
+          color: RED,
+          alpha: alpha * 0.95 * (1 - smooth(clamp(k * 1.8, 0, 1))),
+          taperIn: 0.15,
+          taperOut: 0.6,
+          startW: 0.2,
+          endW: 0.05,
+          dry0: 0.05 + k * 0.5,
+          dry1: 0.5 + k * 0.4,
+          seed: s.seed + 7,
+          time: 0,
+          wobble: 0.15,
+          smoothing: 2,
+          cap: false,
+        });
+      }
     }
     for (const d of this.drops) {
       const sp = Math.hypot(d.vx, d.vy);
@@ -324,24 +367,6 @@ export function paintGround(b: InkBatch) {
     const x1 = x0 + 9 + r() * 4;
     for (let x = x0; x <= x1; x += 0.6) pts.push({ x, y: 0.01 + 0.025 * fbm1(x * 0.9 + k * 3) - k * 0.02 });
     b.stroke(pts, { width: 0.07 - k * 0.012, alpha: 0.85, taperIn: 0.08, taperOut: 0.3, startW: 0.6, endW: 0.2, dry0: 0.25, dry1: 0.85, seed: 50 + k, wobble: 0.3 });
-  }
-  // grass tufts
-  for (let i = 0; i < 46; i++) {
-    const x = -13 + r() * 26;
-    if (Math.abs(x) < 3.5 && r() < 0.7) continue;
-    const n = 2 + Math.floor(r() * 4);
-    for (let j = 0; j < n; j++) {
-      const lean = (r() - 0.3) * 0.5;
-      const h = 0.1 + r() * 0.22;
-      b.stroke(
-        [
-          { x: x + j * 0.03, y: 0.005 },
-          { x: x + j * 0.03 + lean * h * 0.6, y: h * 0.6 },
-          { x: x + j * 0.03 + lean * h * 1.4, y: h },
-        ],
-        { width: 0.022, alpha: 0.8, taperIn: 0.05, taperOut: 0.8, startW: 1, endW: 0.05, dry1: 0.4, seed: i * 7 + j },
-      );
-    }
   }
   // stones
   for (const [x, s] of [
@@ -592,4 +617,195 @@ export class ScreenSplash {
       b.blob({ x: x + 1.5, y: y0 + L }, R * d.w * 0.65, { color: RED, alpha: 0.9, seed: d.x * 9, rough: 0.1, segs: 10 });
     }
   }
+}
+
+/**
+ * The killing stroke: one huge brush cut flung across the whole picture through
+ * the point of impact, as if the painter answered the blade. It is laid down in
+ * a tenth of a second, then dries and lifts off the paper.
+ */
+export class ScreenSlash {
+  age = -1;
+  private pts: V2[] = [];
+  private widths: number[] = [];
+  private seed = 1;
+  private width = 40;
+  private spray: { t: number; off: number; r: number }[] = [];
+
+  trigger(x: number, y: number, w: number, h: number, dir: number, width: number) {
+    this.age = 0;
+    this.seed = rand(1, 100);
+    this.width = width;
+    this.pts = [];
+    this.widths = [];
+    const L = Math.hypot(w, h) * 0.75;
+    const ang = rand(0.16, 0.26); // falls toward the cut's direction
+    const ux = Math.cos(ang) * dir;
+    const uy = Math.sin(ang);
+    const bend = rand(0.05, 0.1) * L;
+    const n = 24;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const s = (t - 0.46) * L;
+      const sag = Math.sin(t * Math.PI) * bend;
+      this.pts.push({ x: x + ux * s - uy * sag * dir, y: y + uy * s + ux * sag * dir });
+      // pressed hard in the first third, then flicked away
+      this.widths.push(Math.pow(Math.sin(Math.PI * Math.pow(t, 0.8)), 0.6));
+    }
+    this.spray = [];
+    for (let i = 0; i < 26; i++) this.spray.push({ t: rand(0.35, 1.05), off: rand(-1.8, 1.8), r: rand(0.04, 0.16) });
+  }
+
+  reset() {
+    this.age = -1;
+  }
+
+  update(dt: number) {
+    if (this.age >= 0) this.age += dt;
+    if (this.age > 4) this.age = -1;
+  }
+
+  draw(b: InkBatch) {
+    if (this.age < 0 || this.pts.length < 2) return;
+    const draw = smooth(clamp(this.age / 0.13, 0, 1));
+    const n = Math.max(2, Math.ceil(this.pts.length * draw));
+    const fade = 1 - smooth(clamp((this.age - 1.6) / 2.2, 0, 1));
+    const dryK = clamp((this.age - 0.3) / 2.5, 0, 1);
+    const pts = this.pts.slice(0, n);
+    b.stroke(pts, {
+      width: this.width,
+      widths: this.widths.slice(0, n),
+      alpha: 0.93 * fade,
+      taperIn: 0.05,
+      taperOut: draw < 1 ? 0.02 : 0.3,
+      startW: 0.15,
+      endW: 0.02,
+      dry0: 0.18 + dryK * 0.45,
+      dry1: 0.88 + dryK * 0.12,
+      seed: this.seed,
+      wobble: 0.15,
+      smoothing: 2,
+      cap: false,
+    });
+    // ink flung off the end of the brush
+    const P = this.pts;
+    for (const s of this.spray) {
+      if (s.t > draw * 1.05) continue;
+      const i = Math.min(P.length - 2, Math.floor(s.t * (P.length - 1)));
+      const a = P[i];
+      const c = P[i + 1];
+      const tx = c.x - a.x;
+      const ty = c.y - a.y;
+      const l = Math.hypot(tx, ty) || 1;
+      const k = s.t > 1 ? (s.t - 1) * 12 : 0;
+      b.blob({ x: a.x - (ty / l) * s.off * this.width * 0.6 + (tx / l) * k * this.width, y: a.y + (tx / l) * s.off * this.width * 0.6 + (ty / l) * k * this.width }, this.width * s.r, {
+        alpha: 0.9 * fade,
+        seed: s.off * 31,
+        rough: 0.3,
+        sx: 1.6,
+        angle: Math.atan2(ty, tx),
+        segs: 9,
+      });
+    }
+  }
+}
+
+interface Blade {
+  x: number;
+  h: number;
+  lean: number;
+  seed: number;
+  w: number;
+  reed: boolean;
+}
+
+/** Grass and reeds that bend in the wind and shiver when steel passes. */
+export class Grass {
+  private blades: Blade[] = [];
+  private gust = 0;
+
+  constructor() {
+    const r = rng(19);
+    for (let i = 0; i < 52; i++) {
+      const x = -13 + r() * 26;
+      if (Math.abs(x) < 3.5 && r() < 0.7) continue;
+      const n = 2 + Math.floor(r() * 4);
+      for (let j = 0; j < n; j++) this.blades.push({ x: x + j * 0.03, h: 0.1 + r() * 0.22, lean: (r() - 0.3) * 0.5, seed: i * 7 + j, w: 0.022, reed: false });
+    }
+    // a few tall pampas reeds with heavy seed heads
+    for (const x of [-7.4, -7.25, -4.9, 6.1, 6.25, 6.32, 9.2]) this.blades.push({ x, h: 0.55 + r() * 0.45, lean: 0.1 + r() * 0.2, seed: x * 13, w: 0.018, reed: true });
+  }
+
+  /** A blast of air from a nearby cut or impact. */
+  shove(k: number) {
+    this.gust = Math.max(this.gust, k);
+  }
+
+  draw(b: InkBatch, time: number, wind: number, dt: number) {
+    this.gust = Math.max(0, this.gust - dt * 1.4);
+    for (const g of this.blades) {
+      const ph = time * (g.reed ? 1.3 : 2.1) - g.x * 0.9;
+      const sway = (wind * 0.35 + 0.12 * Math.sin(ph) + 0.08 * fbm1(time * 0.6 + g.x * 0.4) + this.gust * 0.5 * Math.sin(time * 14 + g.seed)) * (g.reed ? 1.3 : 1);
+      const bend = g.lean + sway;
+      const h = g.h;
+      const tip = { x: g.x + Math.sin(bend) * h * 0.9, y: Math.cos(bend) * h };
+      const mid = { x: g.x + Math.sin(bend * 0.45) * h * 0.55, y: Math.cos(bend * 0.45) * h * 0.55 };
+      b.stroke([{ x: g.x, y: 0.005 }, mid, tip], {
+        width: g.w,
+        alpha: g.reed ? 0.7 : 0.8,
+        taperIn: 0.05,
+        taperOut: 0.8,
+        startW: 1,
+        endW: 0.05,
+        dry1: 0.4,
+        seed: g.seed,
+      });
+      if (g.reed) {
+        // the plume droops off the tip, dry and feathery
+        const d = bend + 0.9;
+        const end = { x: tip.x + Math.sin(d) * 0.22, y: tip.y + Math.cos(d) * 0.22 - 0.06 };
+        b.stroke([{ x: mid.x * 0.2 + tip.x * 0.8, y: mid.y * 0.2 + tip.y * 0.8 }, tip, end], {
+          width: 0.06,
+          alpha: 0.55,
+          taperIn: 0.2,
+          taperOut: 0.7,
+          startW: 0.3,
+          endW: 0.1,
+          dry0: 0.55,
+          dry1: 0.9,
+          seed: g.seed + 3,
+        });
+      }
+    }
+  }
+}
+
+/**
+ * Foreground framing, painted once: dark grass and a low bank right at the
+ * lens, scrolled faster than the field so the picture gains depth.
+ */
+export function paintForeground(b: InkBatch) {
+  const r = rng(23);
+  b.begin();
+  for (let c = 0; c < 9; c++) {
+    const x0 = -16 + c * 4 + r() * 2.2;
+    // a low bank of wash the clump grows from
+    b.blob({ x: x0, y: -0.3 }, 0.3 + r() * 0.2, { alpha: 0.3 + r() * 0.15, seed: x0, rough: 0.45, sx: 2.4, pool: 0.85 });
+    const n = 6 + Math.floor(r() * 7);
+    for (let j = 0; j < n; j++) {
+      const x = x0 + (r() - 0.5) * 0.7;
+      const h = 0.18 + r() * r() * 0.5;
+      const lean = (r() - 0.45) * 1.1;
+      const tip = { x: x + Math.sin(lean) * h, y: Math.cos(lean) * h - 0.04 };
+      b.stroke(
+        [
+          { x, y: -0.12 },
+          { x: x + Math.sin(lean * 0.4) * h * 0.5, y: Math.cos(lean * 0.4) * h * 0.5 - 0.06 },
+          tip,
+        ],
+        { width: 0.035 + r() * 0.02, alpha: 0.88, taperIn: 0.05, taperOut: 0.85, startW: 1, endW: 0.03, dry0: 0.1, dry1: 0.55, seed: c * 31 + j },
+      );
+    }
+  }
+  b.end();
 }
