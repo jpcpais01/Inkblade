@@ -263,7 +263,8 @@ export class Duel {
           tr.swished = true;
           sound.swish(def.attack.heavy);
         }
-        if (a.t >= s - 0.06 && a.t <= e + 0.09) this.fx.addSlashPoint(f, tip, speed);
+        const ahead = (tip.x - f.sk.pelvis.x) * f.facing > 0.05;
+        if (a.t >= s - 0.06 && a.t <= e + 0.09 && ahead) this.fx.addSlashPoint(f, tip, speed);
         else if (a.t > e + 0.09) this.fx.endSlash(f);
       }
     }
@@ -308,8 +309,9 @@ export class Duel {
       this.clash(hit.p, 1);
       return;
     }
-    const counter = def.exposed;
-    const dmg = atk.dmg + (counter ? 1 : 0);
+    // a riposte into a staggered opponent is the one-cut kill; otherwise a cut
+    // wounds, a counter-hit wounds deeper, and it takes two or three to finish
+    const dmg = def.moveName === 'stagger' ? 3 : Math.min(2, atk.dmg + (def.exposed ? 1 : 0));
     def.hp = Math.max(0, def.hp - dmg);
     const dir = att.facing;
     if (def.hp <= 0) {

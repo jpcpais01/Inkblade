@@ -233,7 +233,7 @@ export const MOVES: Record<MoveName, MoveDef> = {
   parry: {
     name: 'parry',
     dur: 0.5,
-    parry: [0.02, 0.18],
+    parry: [0.03, 0.2],
     keys: (s) => [
       k(0, s),
       k(0.06, P(S.mid, { hy: 0.85, sp: 0.0, hx: -0.03, hd: 0.0, gx: 0.3, gy: 0.46, sw: 1.22 }), 'snap'),
@@ -358,3 +358,22 @@ export function samplePose(keys: Key[], t: number, out: Pose): Pose {
   return Object.assign(out, keys[keys.length - 1].p);
 }
 
+
+/**
+ * Lengthen an attack's wind-up (everything before the cut goes live) without
+ * touching the cut itself: weightier anticipation, and time to read it.
+ */
+function stretchWindup(def: MoveDef, f: number) {
+  const a0 = def.active![0];
+  const shift = a0 * (f - 1);
+  const map = (t: number) => (t <= a0 ? t * f : t + shift);
+  const keys = def.keys;
+  def.keys = (s) => keys(s).map((k) => ({ ...k, t: map(k.t) }));
+  def.active = [map(def.active![0]), map(def.active![1])];
+  if (def.travel) def.travel = { ...def.travel, t0: map(def.travel.t0), t1: map(def.travel.t1) };
+  def.dur = map(def.dur);
+}
+stretchWindup(MOVES.overhead, 1.4);
+stretchWindup(MOVES.thrust, 1.45);
+stretchWindup(MOVES.sweep, 1.35);
+stretchWindup(MOVES.iaido, 1.2);

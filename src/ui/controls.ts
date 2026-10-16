@@ -106,6 +106,11 @@ export class Controls {
     else if (this.held.left && !this.held.right) this.send('stepB');
   }
 
+  /** Touch buttons are on screen. */
+  get touchVisible() {
+    return this.active && this.usingTouch;
+  }
+
   show(on: boolean) {
     this.active = on;
     this.refresh();

@@ -130,11 +130,10 @@ void main() {
   vec4 h = vec4(0.0);
   for (int i = 0; i < 8; i++) {
     float a = float(i) * 0.785398 + 0.3;
-    vec2 o = vec2(cos(a), sin(a));
+    vec2 o = vec2(cos(a), sin(a)) * (mod(float(i), 2.0) < 0.5 ? 1.0 : 0.5);
     h += texture(uTexture, uv + o * R * uInputSize.zw);
-    h += texture(uTexture, uv + o * R * 0.45 * uInputSize.zw);
   }
-  h /= 16.0;
+  h /= 8.0;
   float soak = 0.26 + 0.42 * clamp(fib, 0.0, 1.0);
   vec4 halo = h * soak;
   // the paper drinks some pigment from thin ink

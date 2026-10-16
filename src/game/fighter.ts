@@ -2,7 +2,7 @@
 // springs, solved into a skeleton with two-bone IK, and painted as brush strokes.
 
 import { clamp, ease, lerp, noise1, Spring, type V2 } from '../util';
-import { INK, RED, type InkBatch, type Rgb } from '../render/ink';
+import { PAPER, RED, type InkBatch } from '../render/ink';
 import {
   ATTACK_FOR,
   MOVES,
@@ -774,9 +774,13 @@ export class Fighter {
     }
     // keep the hem off the ground
     for (const p of [...L, ...R]) p.y = Math.max(p.y, 0.05);
-    b.ribbon(L, R, { alpha, seed: s, pool: 0.75 });
-    b.stroke(L, { width: 0.032, alpha: 0.92, taperIn: 0.15, taperOut: 0.35, startW: 0.4, endW: 0.35, dry0: 0.05, dry1: 0.65, seed: s + 1, time });
-    b.stroke(R, { width: 0.04, alpha: 0.92, taperIn: 0.15, taperOut: 0.35, startW: 0.4, endW: 0.4, dry0: 0.1, dry1: 0.75, seed: s + 2, time });
+    b.ribbon(L, R, { alpha, seed: s, pool: 0.8, alphas: [1, 1, 0.92, 0.8, 0.55] });
+    // the hem: a short dry stroke across the bottom
+    const hl = L[L.length - 1];
+    const hr = R[R.length - 1];
+    b.stroke([hl, { x: (hl.x + hr.x) / 2, y: Math.max(0.05, ank.y - 0.05) }, hr], { width: 0.03, alpha: 0.75, taperIn: 0.3, taperOut: 0.5, startW: 0.3, endW: 0.2, dry0: 0.3, dry1: 0.8, seed: s + 6, time });
+    b.stroke(L, { width: 0.05, alpha: 0.94, taperIn: 0.12, taperOut: 0.45, startW: 0.35, endW: 0.25, dry0: 0.05, dry1: 0.7, seed: s + 1, time });
+    b.stroke(R, { width: 0.055, alpha: 0.94, taperIn: 0.12, taperOut: 0.45, startW: 0.35, endW: 0.3, dry0: 0.1, dry1: 0.8, seed: s + 2, time });
     // a pleat or two
     if (!back) {
       const pl: V2[] = [];
@@ -800,6 +804,10 @@ export class Fighter {
     b.ribbon(top, bot, { alpha: alpha * 0.75, seed: s, pool: 0.7 });
     b.stroke(bot.slice(1), { width: 0.022, alpha: 0.8, taperIn: 0.2, taperOut: 0.4, startW: 0.4, endW: 0.4, dry1: 0.8, seed: s + 1, time });
     const a = back ? 0.75 : 0.95;
+    if (!back) {
+      // a sliver of untouched paper keeps the arm readable against the body
+      b.stroke([sh, elb, hand], { width: 0.11, color: PAPER, alpha: 0.75, taperIn: 0.1, taperOut: 0.3, startW: 0.6, endW: 0.6, seed: s + 9, time, wobble: 0.1 });
+    }
     b.stroke([sh, elb, hand], { width: 0.072, alpha: a, taperIn: 0.08, taperOut: 0.4, startW: 0.8, endW: 0.55, dry0: 0.0, dry1: 0.45, seed: s + 2, time, smoothing: 4 });
     b.blob(hand, 0.034, { alpha: a, seed: s + 3, rough: 0.25, pool: 0.2, segs: 10 });
   }
@@ -912,4 +920,3 @@ export class Fighter {
   }
 }
 
-export const INK_COLOR: Rgb = INK;

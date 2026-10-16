@@ -126,6 +126,8 @@ export class AI {
     const myAttack: MoveName = me.sheathed ? 'iaido' : ATTACK_FOR[me.stance];
     const myReach = attackReach(myAttack);
 
+    if (me.hp < 3 && dist < 1.6 && Math.random() < 0.02) return this.act('dodge');
+
     // ---- 2. punish what whiffs
     if (seen.recovering && seen.move !== 'hit') {
       if (dist <= myReach + 0.05) {
@@ -182,6 +184,7 @@ export class AI {
     if (!me.sheathed && !open) opts.push([0.8, () => this.shiftToBeat(seen.guard)]);
     if (!me.sheathed && seen.threat == null) opts.push([0.25, () => this.guardAgainst(seen.sheathed ? 'mid' : MOVES[oppAttack].attack!.line)]);
     if (!me.sheathed && dist > 2.9) opts.push([0.12, () => this.act('sheathe')]);
+    if (me.sheathed) opts.push([0.5, () => this.act(Math.random() < 0.6 ? 'up' : 'down')]);
     opts.push([p.patience * 0.9, () => {}]);
 
     let total = 0;
@@ -209,7 +212,7 @@ export class AI {
       if (me.stance === line) opts.push([0.9, () => {}]);
       else if (live > 0.1) opts.push([0.7, () => this.guardAgainst(line)]);
     }
-    if (me.sheathed && live > 0.0) opts.push([0.8 * p.skill, () => this.act('strike')]); // sen no sen: iaido beats the wind-up
+    if (me.sheathed && live > 0.0) opts.push([0.45 * p.skill, () => this.act('strike')]); // sen no sen: iaido beats the wind-up
     if (live > 0.02 && dist > reach - 0.6) opts.push([0.6, () => this.act('dodge')]);
     opts.push([0.25 * (1 - p.skill), () => {}]);
     let total = 0;

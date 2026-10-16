@@ -100,7 +100,7 @@ export class Effects {
   // ---- slash strokes
   beginSlash(owner: object, heavy: boolean) {
     this.endSlash(owner);
-    this.slashes.push({ pts: [], w: [], age: 0, life: heavy ? 2.4 : 1.7, live: true, seed: this.seedN++, width: heavy ? 0.16 : 0.11, owner });
+    this.slashes.push({ pts: [], w: [], age: 0, life: heavy ? 2.4 : 1.7, live: true, seed: this.seedN++, width: heavy ? 0.12 : 0.085, owner });
   }
 
   addSlashPoint(owner: object, p: V2, speed: number) {
@@ -109,7 +109,7 @@ export class Effects {
     const last = s.pts[s.pts.length - 1];
     if (last && Math.hypot(last.x - p.x, last.y - p.y) < 0.025) return;
     s.pts.push({ x: p.x, y: p.y });
-    s.w.push(clamp(speed / 12, 0.25, 1.15));
+    s.w.push(clamp(speed / 14, 0.3, 1.0));
   }
 
   endSlash(owner: object) {
@@ -209,12 +209,12 @@ export class Effects {
     for (const p of this.petals) {
       if (near !== p.z > 1.15) continue;
       const flip = Math.abs(Math.cos(p.spin));
-      b.blob({ x: p.x, y: p.y }, 0.018 * p.z, {
+      b.blob({ x: p.x, y: p.y }, 0.026 * p.z, {
         color: p.red ? RED : INK,
         alpha: (p.red ? 0.85 : 0.55) * (0.6 + 0.4 * Math.min(1, p.z)),
         seed: p.seed,
         rough: 0.25,
-        sx: 0.45 + flip * 1.1,
+        sx: 0.35 + flip * 1.4,
         angle: p.spin * 0.7,
         pool: 0.5,
         segs: 9,

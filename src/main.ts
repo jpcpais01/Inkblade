@@ -8,7 +8,7 @@ import { paintGround, paintLives, paintPine, ScreenSplash } from './render/fx';
 import { InkBatch } from './render/ink';
 import { makeSeal } from './ui/seal';
 import { Controls } from './ui/controls';
-import { clamp, lerp, Spring } from './util';
+import { clamp, lerp, smooth, Spring } from './util';
 
 const MOUNTAINS: (MountainParams & { parallax: number })[] = [
   { seed: 11.3, base: 0.66, amp: 0.36, dark: 0.24, freq: 2.2, mist: 0.3, parallax: 0.04 },
@@ -111,13 +111,14 @@ async function boot() {
   const titleEl = document.getElementById('title')!;
   const resultEl = document.getElementById('result')!;
   const verdictEl = document.getElementById('verdict')!;
+  const beginEl = document.getElementById('begin')!;
   let sealT = -1;
   let autoTimer = 0;
 
   const duel = new Duel({
     killSplash(at, dir) {
       const p = toScreen(at.x, at.y);
-      splash.trigger(p.x + dir * camScale * 0.25, p.y - camScale * 0.1, camScale * 0.3, dir);
+      splash.trigger(p.x + dir * camScale * 0.25, p.y - camScale * 0.1, camScale * 0.42, dir);
     },
     seal() {
       sealT = 0;
@@ -137,6 +138,9 @@ async function boot() {
     },
     unlock() {
       controls.flash();
+      beginEl.classList.remove('show');
+      void beginEl.offsetWidth;
+      beginEl.classList.add('show');
     },
   });
 
@@ -208,6 +212,7 @@ async function boot() {
     const dist = Math.abs(b.x - a.x);
     const portrait = H > W;
     let wantW = duel.phase === 'title' ? 8.6 : clamp(dist + 4.4, 6.6, 10.5);
+    if (duel.phase === 'standoff') wantW = lerp(9.4, 7.6, smooth(clamp(duel.phaseT / 4, 0, 1)));
     if (portrait) wantW = clamp(dist + 2.6, 4.6, 7);
     let cx = (a.x + b.x) / 2;
     if (duel.punch > 0) {
@@ -218,7 +223,7 @@ async function boot() {
     camX.step(cx, dt);
     camZ.step(wantW, dt);
     camScale = Math.min(W / camZ.x, (H * (portrait ? 0.42 : 0.62)) / 2.1);
-    const groundY = H * (portrait ? 0.66 : 0.8);
+    const groundY = H * (portrait ? 0.66 : controls.touchVisible ? 0.74 : 0.8);
     const sh = duel.shake * duel.shake * camScale * 0.04;
     const sx = (Math.random() - 0.5) * sh;
     const sy = (Math.random() - 0.5) * sh;
@@ -265,8 +270,9 @@ async function boot() {
     splash.draw(screenInk);
     if (duel.phase === 'fight' || duel.phase === 'standoff') {
       const s = Math.max(12, Math.min(W, H) * 0.03);
-      paintLives(screenInk, W / 2 - s * 2.4, s * 2.6, -1, a.hp, 3, s, real);
-      paintLives(screenInk, W / 2 + s * 2.4, s * 2.6, 1, b.hp, 3, s, real);
+      const hy = s * 2.6 + (portraitNow() ? 34 : 0);
+      paintLives(screenInk, W / 2 - s * 2.4, hy, -1, a.hp, 3, s, real);
+      paintLives(screenInk, W / 2 + s * 2.4, hy, 1, b.hp, 3, s, real);
     }
     screenInk.end();
 
@@ -292,8 +298,10 @@ async function boot() {
 
   /** Debug / screenshot helper: advance the world by fixed steps. */
   function run(seconds: number) {
-    for (let t = 0; t < seconds; t += 1 / 60) update(1 / 60);
+    app.ticker.stop();
+    for (let t = 0; t < seconds - 1e-6; t += 1 / 60) update(1 / 60);
     paint();
+    app.render();
   }
 
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -301,7 +309,7 @@ async function boot() {
   }
 
   // expose for screenshots / debugging
-  (window as unknown as { inkblade: unknown }).inkblade = { duel, start, run, cpu: () => cpuMs };
+  (window as unknown as { inkblade: unknown }).inkblade = { duel, start, run, cpu: () => cpuMs, resume: () => app.ticker.start() };
   document.body.classList.add('ready');
 }
 

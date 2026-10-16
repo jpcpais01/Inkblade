@@ -48,7 +48,7 @@ void main() {
     float v = vUV.y;
     float edge = 1.0 - smoothstep(0.78, 1.0, abs(v));
     float s1 = vnoise(vec2(vUV.x * 2.2 + seed * 5.1, v * 7.0 + seed * 3.3));
-    float s2 = vnoise(vec2(vUV.x * 9.0 - seed, v * 21.0 + seed));
+    float s2 = vnoise(vec2(vUV.x * 4.5 - seed, v * 13.0 + seed));
     float streak = s1 * 0.68 + s2 * 0.32;
     // dryness eats in from the edges first and opens gaps between bristles
     float th = dry * (0.45 + 0.55 * abs(v));
@@ -124,6 +124,8 @@ export interface BlobOpts {
   sx?: number;
   angle?: number;
   segs?: number;
+  /** Ribbon only: per-row alpha multipliers. */
+  alphas?: number[];
 }
 
 export class InkBatch {
@@ -358,9 +360,10 @@ export class InkBatch {
       const L = left[i];
       const R = right[i];
       const edgeEnd = i === 0 || i === left.length - 1 ? 0.9 : 0;
-      const l = this.vert(L.x, L.y, 0, 1, color, alpha, dry, 1, seed, pool);
-      const c = this.vert((L.x + R.x) / 2, (L.y + R.y) / 2, 0, edgeEnd, color, alpha, dry, 1, seed, pool);
-      const r = this.vert(R.x, R.y, 0, 1, color, alpha, dry, 1, seed, pool);
+      const ai = alpha * (o.alphas ? o.alphas[i] : 1);
+      const l = this.vert(L.x, L.y, 0, 1, color, ai, dry, 1, seed, pool);
+      const c = this.vert((L.x + R.x) / 2, (L.y + R.y) / 2, 0, edgeEnd, color, ai, dry, 1, seed, pool);
+      const r = this.vert(R.x, R.y, 0, 1, color, ai, dry, 1, seed, pool);
       if (pl >= 0) {
         this.tri(pl, pc, l);
         this.tri(pc, c, l);
