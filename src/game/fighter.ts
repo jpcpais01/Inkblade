@@ -140,6 +140,11 @@ export class Fighter {
   private sleeveLag = v();
   private lastHand = v();
   events: FighterEvents = {};
+  /** Recent blade positions (tip and lower blade). */
+  trail: { x: number; y: number; mx: number; my: number }[] = [];
+  private lastX = 0;
+  /** Hakama hem lag from body motion and wind (facing-relative). */
+  private hemLag = 0;
   name: string;
 
   constructor(
@@ -419,11 +424,22 @@ export class Fighter {
     // breathing and the restless tip of the sword (seme)
     const t = this.time;
     if (!this.dead) {
-      const b = Math.sin(t * 1.7 + this.seed);
-      this.target.hy += 0.007 * b;
-      this.target.sp += 0.014 * Math.sin(t * 1.7 + this.seed + 0.7);
-      this.target.gy += 0.006 * b;
-      if (!this.action) this.target.sw += 0.03 * noise1(t * 0.6 + this.seed * 10);
+      // a living body never quite stops: breath, a slow shift of weight
+      // between the feet, the head settling, the sword tip searching (seme)
+      const calm = this.action ? 0.35 : 1;
+      const b = Math.sin(t * 1.55 + this.seed);
+      const shift = noise1(t * 0.32 + this.seed * 3);
+      this.target.hy += 0.01 * b - 0.014 * Math.abs(shift) * calm;
+      this.target.sp += 0.018 * Math.sin(t * 1.55 + this.seed + 0.7) + 0.025 * shift * calm;
+      this.target.hx += 0.04 * shift * calm;
+      this.target.gy += 0.009 * b;
+      this.target.hd += 0.035 * noise1(t * 0.45 + this.seed * 7) * calm - 0.02 * b;
+      if (!this.action) {
+        this.target.sw += 0.04 * noise1(t * 0.6 + this.seed * 10);
+        this.target.gx += 0.018 * noise1(t * 0.8 + this.seed * 5);
+        // now and then the hands re-settle on the hilt
+        if (!this.sheathed && Math.random() < dt * 0.35) this.kick({ sw: (Math.random() - 0.5) * 2.4, gy: 0.25, hy: -0.15 });
+      }
     }
 
     const striking = this.striking;
@@ -439,6 +455,16 @@ export class Fighter {
     this.liftB += Math.max(0, this.pose.bl);
 
     this.solve();
+
+    // remember where the blade has been, for the motion smear
+    const tr = this.trail;
+    const sk0 = this.sk;
+    tr.push({ x: sk0.tip.x, y: sk0.tip.y, mx: lerp(sk0.tsuba.x, sk0.tip.x, 0.3), my: lerp(sk0.tsuba.y, sk0.tip.y, 0.3) });
+    if (tr.length > 9) tr.shift();
+    const bodyV = (this.x - this.lastX) / Math.max(dt, 1e-4);
+    this.lastX = this.x;
+    const kk = 1 - Math.exp(-dt * 6);
+    this.hemLag += (clamp(-bodyV * this.facing * 0.06 - wind * this.facing * 0.025, -0.12, 0.12) - this.hemLag) * kk;
 
     // death drops the sword
     if (a && a.def.name === 'death' && a.t > 0.3 && !this.dropped) {
@@ -601,6 +627,11 @@ export class Fighter {
     ];
   }
 
+  /** Physical impulse layered over the animation: a shove into the springs. */
+  kick(k: Partial<Pose>) {
+    for (const key of Object.keys(k) as (keyof Pose)[]) this.springs[key].v += k[key]!;
+  }
+
   markHit() {
     if (this.action) this.action.hitDone = true;
   }
@@ -673,6 +704,7 @@ export class Fighter {
 
     this.drawHead(b, time, s);
 
+    if (sword) this.drawSmear(b);
     if (sword && !swordBehind) this.drawSword(b, time, s);
     if (this.dropped) this.drawDropped(b, time, s);
 
@@ -772,6 +804,12 @@ export class Fighter {
       L.push({ x: pts[i].x + nx * h * 0.85, y: pts[i].y + ny * h * 0.85 });
       R.push({ x: pts[i].x - nx * h * 1.1, y: pts[i].y - ny * h * 1.1 });
     }
+    // the hem trails motion and wind
+    for (let i = 2; i < L.length; i++) {
+      const w = ((i - 1) / (L.length - 1)) ** 2 * this.hemLag * f;
+      L[i].x += w;
+      R[i].x += w * 1.3;
+    }
     // keep the hem off the ground
     for (const p of [...L, ...R]) p.y = Math.max(p.y, 0.05);
     b.ribbon(L, R, { alpha, seed: s, pool: 0.8, alphas: [1, 1, 0.92, 0.8, 0.55] });
@@ -867,6 +905,21 @@ export class Fighter {
       b.stroke(this.ropes[0].pts, { width: 0.032, color: RED, alpha: 0.92, taperIn: 0.05, taperOut: 0.6, startW: 0.9, endW: 0.3, dry1: 0.7, seed: s + 25, time });
       b.stroke(this.ropes[1].pts, { width: 0.026, color: RED, alpha: 0.88, taperIn: 0.05, taperOut: 0.6, startW: 0.9, endW: 0.3, dry1: 0.75, seed: s + 26, time });
     }
+  }
+
+  /** Fast blade motion leaves a pale dry-brush fan, like a smear frame. */
+  private drawSmear(b: InkBatch) {
+    const tr = this.trail;
+    if (tr.length < 4 || this.sheathed) return;
+    let len = 0;
+    for (let i = 1; i < tr.length; i++) len += Math.hypot(tr[i].x - tr[i - 1].x, tr[i].y - tr[i - 1].y);
+    const k = clamp((len - 0.3) * 1.4, 0, 1);
+    if (k <= 0) return;
+    const tips = tr.map((p) => ({ x: p.x, y: p.y }));
+    const mids = tr.map((p) => ({ x: p.mx, y: p.my }));
+    const alphas = tr.map((_, i) => (i / (tr.length - 1)) ** 1.5);
+    b.ribbon(tips, mids, { alpha: 0.32 * k, seed: this.seed * 5, pool: 0.9, dry: 0.25, alphas });
+    b.stroke(tips, { width: 0.035, alpha: 0.55 * k, taperIn: 0.6, taperOut: 0.05, startW: 0.05, endW: 1, dry0: 0.6, dry1: 0.2, seed: this.seed * 9, smoothing: 2 });
   }
 
   private drawSaya(b: InkBatch, time: number, s: number) {

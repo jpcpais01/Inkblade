@@ -3,6 +3,8 @@
 A one-on-one samurai duel painted in living sumi-e ink. One demo fight, built
 to look and move like a brush painting that breathes.
 
+![A killing blow, the brush cut and the seal](docs/kill.webp)
+
 - **Vite + TypeScript + PixiJS 8 (WebGL)**, installable PWA, deploys to Vercel as-is.
 - **Everything is procedural.** Rice paper, ink-wash mountains and the red sun are
   fragment shaders baked once per resize. Fighters, slashes, splashes and petals are
@@ -12,7 +14,9 @@ to look and move like a brush painting that breathes.
 - **Procedural animation.** Moves are pose targets on a timeline; springs chase them,
   which gives anticipation, follow-through and settle. Arms and legs are solved with
   two-bone IK onto the grip and planted feet, and sashes, sleeves and the hachimaki
-  ride on verlet ropes in the wind.
+  ride on verlet ropes in the wind. Hits, clashes and parries shove those springs
+  directly, fighters breathe and shift their weight while they wait, and blades
+  leave a dry smear behind fast cuts.
 - **Sound** is pure Web Audio: wind, paper rustle, taiko, ringing steel, and a
   shakuhachi phrase in the miyako-bushi mode during the standoff.
 

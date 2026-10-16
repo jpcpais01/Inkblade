@@ -283,6 +283,8 @@ export class Duel {
         def.markHit();
         att.force('recoil');
         def.force('recoil');
+        this.rebound(att, 1.2);
+        this.rebound(def, 1.2);
         this.clash(c.p, 1.2);
         return;
       }
@@ -298,6 +300,9 @@ export class Duel {
     if (def.parrying) {
       att.force('stagger');
       def.force('riposte');
+      this.rebound(att, 1.8);
+      att.kick({ sp: -7, hd: -5, hy: -1.2 });
+      def.kick({ sw: def.springs.sw.v * 0.2, sp: 2.5 });
       this.clash(hit.p, 1.4);
       this.hitStop = 0.14;
       this.fx.splash(hit.p, def.facing, 0.25, false);
@@ -306,6 +311,8 @@ export class Duel {
     if (def.guardLine === atk.line) {
       att.force('recoil');
       def.force('recoil');
+      this.rebound(att, 1);
+      def.kick({ gy: -2, sp: -3, hx: -1.2 });
       this.clash(hit.p, 1);
       return;
     }
@@ -319,11 +326,21 @@ export class Duel {
       return;
     }
     def.force('hit');
+    // the cut lands in the body: a shove the animation could never key
+    def.kick({ sp: -9, hd: -8, hy: -1.6, hx: -2.2 });
+    att.kick({ gy: -1.2, sp: 1.5 });
+    this.fx.bloodSlash(att);
     this.hitStop = 0.11;
     this.shake = 0.5;
     this.fx.splash(hit.p, dir, 0.6, true);
     sound.cut(atk.heavy);
     sound.taiko(0.6);
+  }
+
+  /** Steel on steel: the blade bounces back along the way it came. */
+  private rebound(f: Fighter, power: number) {
+    const v = f.springs.sw.v;
+    f.kick({ sw: -v * 0.55 * power - Math.sign(v || 1) * 2, gx: -2 * power, sp: -2.5 * power, hd: -2 });
   }
 
   private clash(at: V2, power: number) {
@@ -342,6 +359,9 @@ export class Duel {
     def.locked = true;
     def.dead = true;
     def.force('death');
+    def.kick({ sp: -12, hd: -14, hy: -2 });
+    att.kick({ sw: att.springs.sw.v * 0.35, sp: 2 });
+    this.fx.bloodSlash(att);
     this.hitStop = 0.38;
     this.timeScale = 0.18;
     this.shake = 1;
